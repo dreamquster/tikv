@@ -1633,11 +1633,11 @@ impl Peer {
                        batch: Vec<(RaftCmdRequest, Callback)>)
                        -> Vec<(Result<RaftCmdResponse>, Callback)> {
         let mut snap = None;
-        let mut resps = Vec::with_capacity(batch.len());
+        let mut ret = Vec::with_capacity(batch.len());
 
         'bat: for (cmd, cb) in batch {
             if let Err(e) = check_epoch(self.region(), &cmd) {
-                resps.push((Err(e), cb));
+                ret.push((Err(e), cb));
                 continue;
             }
 
@@ -1653,7 +1653,7 @@ impl Peer {
                         match apply::do_get(&self.tag, self.region(), snap.as_ref().unwrap(), req) {
                             Ok(resp) => resp,
                             Err(e) => {
-                                resps.push((Err(e), cb));
+                                ret.push((Err(e), cb));
                                 continue 'bat;
                             }
                         }
@@ -1662,11 +1662,11 @@ impl Peer {
                         match apply::do_snap(self.region().to_owned()) {
                             Ok(resp) => resp,
                             Err(e) => {
-                                resps.push((Err(e), cb));
+                                ret.push((Err(e), cb));
                                 continue 'bat;
                             }
                         }
-                    },
+                    }
                     CmdType::Prewrite => unreachable!(),
                     CmdType::Put | CmdType::Delete | CmdType::Invalid => unreachable!(),
                 };
@@ -1677,10 +1677,10 @@ impl Peer {
             }
             let mut resp = RaftCmdResponse::new();
             resp.set_responses(protobuf::RepeatedField::from_vec(responses));
-            resps.push((Ok(resp), cb));
+            ret.push((Ok(resp), cb));
         }
 
-        resps
+        ret
     }
 }
 
